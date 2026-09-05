@@ -6,7 +6,7 @@ import { COLS, ROWS, gridToLatLng, latLngToGrid } from '../sim/engine'
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
-const LINK_COLOR = { online: '#2dd4bf', degraded: '#f5b342', autonomous: '#ef4444' }
+const LINK_COLOR = { online: '#10b981', degraded: '#d97706', autonomous: '#ef4444' }
 
 function RobotGlyph({ color, link, activity, selected }) {
   const ring = LINK_COLOR[link] ?? color

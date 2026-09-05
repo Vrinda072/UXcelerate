@@ -54,7 +54,7 @@ export default function TopBar({ state, mode, actions, showComms, onToggleComms 
   const started = state.phase === 'running'
 
   return (
-    <header className="relative flex items-center justify-between gap-4 px-5 h-16 border-b border-[var(--line)] bg-[var(--ink-950)] shrink-0">
+    <header className="relative z-10 flex items-center justify-between gap-4 px-5 h-16 border-b border-[var(--line)] bg-[var(--ink-950)] card-shadow shrink-0">
       <div className="flex items-center gap-2.5 min-w-0 shrink-0">
         <span className={`w-2 h-2 rounded-full ${started ? 'bg-[var(--danger)] animate-pulse' : 'bg-[var(--text-lo)]'}`} />
         <div className="min-w-0 leading-tight">

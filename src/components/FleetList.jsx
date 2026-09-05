@@ -5,7 +5,7 @@ export default function FleetList({ state, selectedRobotId, onSelectRobot }) {
   const now = state.startedAt + state.tick * 1000
 
   return (
-    <aside className="w-64 shrink-0 border-r border-[var(--line)] bg-[var(--ink-950)] flex flex-col">
+    <aside className="w-64 shrink-0 border-r border-[var(--line)] bg-[var(--ink-950)] card-shadow flex flex-col">
       <div className="px-4 h-9 flex items-center">
         <h2 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-lo)]">
           Fleet <span className="font-mono text-[var(--text-hi)]">{state.robots.length}</span>

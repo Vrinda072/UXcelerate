@@ -11,8 +11,8 @@ import ReplayBar from './components/ReplayBar'
 
 function MissionStartOverlay({ onStart, robotCount }) {
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--ink-950)]/55 backdrop-blur-[2px]">
-      <div className="fade-in max-w-sm text-center px-6 py-7 rounded-xl border border-[var(--line)] bg-[var(--ink-950)]/95 shadow-2xl shadow-black/60">
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/45 backdrop-blur-[2px]">
+      <div className="fade-in max-w-sm text-center px-6 py-7 rounded-xl border border-[var(--line)] bg-[var(--ink-950)] shadow-2xl shadow-black/20">
         <p className="text-[10px] font-bold tracking-[0.2em] text-[var(--text-lo)] mb-2">SECTOR STANDBY</p>
         <h2 className="text-lg font-semibold text-[var(--text-hi)] mb-2">{robotCount} units staged at base</h2>
         <p className="text-[12.5px] text-[var(--text-lo)] leading-relaxed mb-5">
@@ -93,7 +93,7 @@ export default function App() {
             {mode === 'replay' && <ReplayBar history={history} replayIndex={replayIndex} onScrub={actions.scrub} onExit={actions.exitReplay} />}
           </main>
 
-          <aside className="w-72 shrink-0 border-l border-[var(--line)] bg-[var(--ink-950)] flex flex-col min-h-0">
+          <aside className="w-72 shrink-0 border-l border-[var(--line)] bg-[var(--ink-950)] card-shadow flex flex-col min-h-0">
             <RobotDetailPanel robot={selectedRobot} now={now} mode={mode} started={state.phase === 'running'} />
             <EventFeed
               state={state}
