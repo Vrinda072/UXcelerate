@@ -48,13 +48,13 @@ export default function SurvivorAlert({ state, onAcknowledge, onDispatch }) {
                   onDispatch(survivor.id)
                   onAcknowledge(evt.id)
                 }}
-                className="flex-1 px-2 py-1.5 rounded bg-[var(--danger)] hover:brightness-110 text-white text-[10.5px] font-bold tracking-wide"
+                className="flex-1 px-2 py-1.5 rounded-md bg-[var(--danger)] hover:brightness-110 text-white text-[10.5px] font-bold tracking-wide transition-all"
               >
                 DISPATCH {survivor.condition === 'Critical' ? 'MEDICAL UNIT' : 'NEAREST UNIT'}
               </button>
               <button
                 onClick={() => onAcknowledge(evt.id)}
-                className="px-2.5 py-1.5 rounded border border-[var(--line)] text-[var(--text-lo)] hover:text-[var(--text-hi)] hover:bg-[var(--ink-800)] text-[10.5px] font-semibold"
+                className="px-2.5 py-1.5 rounded-md border border-[var(--line)] text-[var(--text-lo)] hover:text-[var(--text-hi)] hover:bg-[var(--ink-800)] text-[10.5px] font-semibold transition-colors"
               >
                 Dismiss
               </button>

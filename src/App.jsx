@@ -9,12 +9,12 @@ import RobotDetailPanel from './components/RobotDetailPanel'
 import EventFeed from './components/EventFeed'
 import ReplayBar from './components/ReplayBar'
 
-function MissionStartOverlay({ onStart }) {
+function MissionStartOverlay({ onStart, robotCount }) {
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--ink-950)]/55 backdrop-blur-[2px]">
       <div className="fade-in max-w-sm text-center px-6 py-7 rounded-xl border border-[var(--line)] bg-[var(--ink-950)]/95 shadow-2xl shadow-black/60">
         <p className="text-[10px] font-bold tracking-[0.2em] text-[var(--text-lo)] mb-2">SECTOR STANDBY</p>
-        <h2 className="text-lg font-semibold text-[var(--text-hi)] mb-2">6 units staged at base</h2>
+        <h2 className="text-lg font-semibold text-[var(--text-hi)] mb-2">{robotCount} units staged at base</h2>
         <p className="text-[12.5px] text-[var(--text-lo)] leading-relaxed mb-5">
           Regional seismic sensors indicate an active event. Deploy the fleet to begin structural assessment and search
           for survivors.
@@ -52,26 +52,44 @@ export default function App() {
     [actions],
   )
 
+  const handleSelectRobot = useCallback(
+    (id) => {
+      actions.selectRobot(id)
+      const robot = state.robots.find((r) => r.id === id)
+      if (robot) mapRef.current?.flyTo(robot.x, robot.y)
+    },
+    [actions, state.robots],
+  )
+
+  const handleDispatch = useCallback(
+    (survivorId) => {
+      const survivor = state.survivors.find((s) => s.id === survivorId)
+      actions.dispatchNearestRobot(survivorId)
+      if (survivor) mapRef.current?.flyTo(survivor.x, survivor.y)
+    },
+    [actions, state.survivors],
+  )
+
   return (
     <div className="h-screen w-screen overflow-x-auto bg-[var(--ink-900)] text-[var(--text-hi)]">
       <div className="h-full min-w-[1080px] flex flex-col">
         <TopBar state={state} mode={mode} actions={actions} showComms={showComms} onToggleComms={() => setShowComms((v) => !v)} />
         <div className="flex-1 flex min-h-0">
-          <FleetList state={state} selectedRobotId={state.selectedRobotId} onSelectRobot={actions.selectRobot} />
+          <FleetList state={state} selectedRobotId={state.selectedRobotId} onSelectRobot={handleSelectRobot} />
 
           <main className="flex-1 relative min-w-0">
             <MapView
               ref={mapRef}
               state={state}
               selectedRobotId={state.selectedRobotId}
-              onSelectRobot={actions.selectRobot}
+              onSelectRobot={handleSelectRobot}
               onCellClick={(x, y) => actions.sendRobotTo(state.selectedRobotId, x, y)}
               interactive={interactive}
               showComms={showComms}
             />
             <Legend showComms={showComms} />
-            {interactive && <SurvivorAlert state={state} onAcknowledge={actions.acknowledgeEvent} onDispatch={actions.dispatchNearestRobot} />}
-            {state.phase === 'ready' && <MissionStartOverlay onStart={handleStart} />}
+            {interactive && <SurvivorAlert state={state} onAcknowledge={actions.acknowledgeEvent} onDispatch={handleDispatch} />}
+            {state.phase === 'ready' && <MissionStartOverlay onStart={handleStart} robotCount={state.robots.length} />}
             {mode === 'replay' && <ReplayBar history={history} replayIndex={replayIndex} onScrub={actions.scrub} onExit={actions.exitReplay} />}
           </main>
 
@@ -80,7 +98,7 @@ export default function App() {
             <EventFeed
               state={state}
               onAcknowledge={actions.acknowledgeEvent}
-              onDispatch={actions.dispatchNearestRobot}
+              onDispatch={handleDispatch}
               onSetSurvivorStatus={actions.setSurvivorStatus}
               onFocusEvent={handleFocusEvent}
             />

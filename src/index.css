@@ -76,6 +76,16 @@ body {
   animation: toast-in 0.25s ease-out;
 }
 
+@keyframes discovery-ping {
+  0% { r: 3; opacity: 0.9; stroke-width: 3; }
+  100% { r: 22; opacity: 0; stroke-width: 0.5; }
+}
+.discovery-ping {
+  animation: discovery-ping 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 @keyframes route-march {
   to { stroke-dashoffset: -26; }
 }

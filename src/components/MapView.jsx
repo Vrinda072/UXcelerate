@@ -12,19 +12,21 @@ function RobotGlyph({ color, link, activity, selected }) {
   const ring = LINK_COLOR[link] ?? color
   const pulsing = activity === 'survivor_detected' || activity === 'investigating'
   return (
-    <svg width="30" height="30" viewBox="0 0 30 30">
-      {selected && <circle cx="15" cy="15" r="13.5" fill="none" stroke="#f8fafc" strokeWidth="1.4" strokeOpacity="0.9" />}
-      {pulsing && <circle className="pulse-ring" cx="15" cy="15" r="9" fill="none" stroke={ring} strokeWidth="2" />}
+    <svg width="32" height="32" viewBox="0 0 32 32" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.55))' }}>
+      {selected && (
+        <circle cx="16" cy="16" r="14.5" fill="none" stroke="#f8fafc" strokeWidth="1.4" strokeOpacity="0.9" className="fade-in" />
+      )}
+      {pulsing && <circle className="pulse-ring" cx="16" cy="16" r="9" fill="none" stroke={ring} strokeWidth="2" />}
       <circle
-        cx="15"
-        cy="15"
+        cx="16"
+        cy="16"
         r="9"
         fill={link === 'autonomous' ? '#3a4556' : '#0b1220'}
         stroke={ring}
         strokeWidth="2.5"
         strokeDasharray={link === 'online' ? undefined : '3 2'}
       />
-      <circle cx="15" cy="15" r="4" fill={color} />
+      <circle cx="16" cy="16" r="4" fill={color} />
     </svg>
   )
 }
@@ -255,6 +257,24 @@ const MapView = forwardRef(function MapView(
       <canvas ref={fogCanvasRef} className="absolute inset-0 pointer-events-none" />
 
       <svg className="absolute inset-0 pointer-events-none" width={boxW} height={boxH}>
+        {state.robots.map((r) => {
+          if (r.trail.length < 2) return null
+          const pts = [...r.trail, { x: r.x, y: r.y }].map((p) => project(p.x, p.y)).filter(Boolean)
+          if (pts.length < 2) return null
+          return (
+            <polyline
+              key={`trail-${r.id}`}
+              points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke={r.color}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.3"
+            />
+          )
+        })}
+
         {state.robots
           .filter((r) => r.routePath && r.routePath.length > 1)
           .map((r) => {
@@ -271,6 +291,25 @@ const MapView = forwardRef(function MapView(
                 strokeLinecap="round"
                 className="route-line"
                 opacity="0.85"
+              />
+            )
+          })}
+
+        {Object.values(state.cells)
+          .filter((c) => c.flashUntil >= state.tick && (c.state === 'hazard' || c.state === 'blocked'))
+          .map((c) => {
+            const pt = project(c.x, c.y)
+            if (!pt) return null
+            return (
+              <circle
+                key={`ping-${c.x}-${c.y}-${c.discoveredAt}`}
+                cx={pt.x}
+                cy={pt.y}
+                r="4"
+                fill="none"
+                stroke={c.state === 'hazard' ? '#f97316' : '#ef4444'}
+                strokeWidth="2"
+                className="discovery-ping"
               />
             )
           })}
@@ -341,7 +380,7 @@ const MapView = forwardRef(function MapView(
                   onSelectRobot(r.id)
                 }}
                 className="cursor-pointer"
-                style={{ transform: 'translate(-15px,-15px)' }}
+                style={{ transform: 'translate(-16px,-16px)' }}
                 title={r.name}
               >
                 <RobotGlyph color={r.color} link={r.link} activity={r.activity} selected={r.id === selectedRobotId} />

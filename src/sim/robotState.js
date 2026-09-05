@@ -62,3 +62,11 @@ export const TONE_DOT_CLASS = {
   warn: 'bg-[var(--warn)]',
   danger: 'bg-[var(--danger)]',
 }
+
+export const TONE_PILL_CLASS = {
+  neutral: 'bg-[var(--ink-700)] text-[var(--text-lo)]',
+  accent: 'bg-[var(--accent)]/15 text-[var(--accent)]',
+  ok: 'bg-[var(--ok)]/15 text-[var(--ok)]',
+  warn: 'bg-[var(--warn)]/15 text-[var(--warn)]',
+  danger: 'bg-[var(--danger)]/15 text-[var(--danger)]',
+}
