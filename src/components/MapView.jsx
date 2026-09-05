@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { COLS, ROWS, gridToLatLng, latLngToGrid } from '../sim/engine'
@@ -6,21 +6,25 @@ import { COLS, ROWS, gridToLatLng, latLngToGrid } from '../sim/engine'
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
-function RobotDot({ color, status, selected }) {
-  const ring = status === 'active' ? color : status === 'degraded' ? '#f5b342' : '#ef4444'
+const LINK_COLOR = { online: '#2dd4bf', degraded: '#f5b342', autonomous: '#ef4444' }
+
+function RobotGlyph({ color, link, activity, selected }) {
+  const ring = LINK_COLOR[link] ?? color
+  const pulsing = activity === 'survivor_detected' || activity === 'investigating'
   return (
-    <svg width="26" height="26" viewBox="0 0 26 26">
-      {selected && <circle cx="13" cy="13" r="12" fill="none" stroke="#f8fafc" strokeWidth="1.5" strokeOpacity="0.85" />}
+    <svg width="30" height="30" viewBox="0 0 30 30">
+      {selected && <circle cx="15" cy="15" r="13.5" fill="none" stroke="#f8fafc" strokeWidth="1.4" strokeOpacity="0.9" />}
+      {pulsing && <circle className="pulse-ring" cx="15" cy="15" r="9" fill="none" stroke={ring} strokeWidth="2" />}
       <circle
-        cx="13"
-        cy="13"
-        r="8"
-        fill={status === 'lost' ? '#475569' : color}
+        cx="15"
+        cy="15"
+        r="9"
+        fill={link === 'autonomous' ? '#3a4556' : '#0b1220'}
         stroke={ring}
         strokeWidth="2.5"
-        strokeDasharray={status === 'active' ? undefined : '3 2'}
+        strokeDasharray={link === 'online' ? undefined : '3 2'}
       />
-      <circle cx="13" cy="13" r="2.5" fill="#0b1220" />
+      <circle cx="15" cy="15" r="4" fill={color} />
     </svg>
   )
 }
@@ -29,6 +33,9 @@ function SurvivorPin({ status }) {
   const color = status === 'confirmed' ? '#34d399' : status === 'rescued' ? '#64748b' : '#fbbf24'
   return (
     <svg width="24" height="32" viewBox="0 0 24 32">
+      {status === 'unconfirmed' && (
+        <circle className="pulse-ring" cx="12" cy="11.5" r="6" fill="none" stroke={color} strokeWidth="2" />
+      )}
       <path
         d="M12 1C6.2 1 1.5 5.6 1.5 11.3c0 7.8 10.5 19 10.5 19s10.5-11.2 10.5-19C22.5 5.6 17.8 1 12 1z"
         fill={color}
@@ -42,7 +49,7 @@ function SurvivorPin({ status }) {
 
 function HazardBadge() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24">
+    <svg width="22" height="22" viewBox="0 0 24 24">
       <polygon points="12,2 22,20 2,20" fill="#f97316" stroke="#0b1220" strokeWidth="1.5" strokeLinejoin="round" />
       <rect x="11" y="9" width="2" height="6" fill="#0b1220" />
       <rect x="11" y="16" width="2" height="2" fill="#0b1220" />
@@ -52,7 +59,7 @@ function HazardBadge() {
 
 function BlockedBadge() {
   return (
-    <svg width="22" height="22" viewBox="0 0 22 22">
+    <svg width="20" height="20" viewBox="0 0 22 22">
       <circle cx="11" cy="11" r="9" fill="#ef4444" stroke="#0b1220" strokeWidth="1.5" />
       <rect x="4" y="9.5" width="14" height="3" rx="1" fill="#0b1220" />
     </svg>
@@ -62,13 +69,16 @@ function BlockedBadge() {
 function BaseBadge() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28">
-      <rect x="3" y="3" width="22" height="22" rx="5" fill="#0b1220" stroke="#38bdf8" strokeWidth="2" />
-      <path d="M14 8l7 6h-2v6h-4v-4h-2v4H9v-6H7z" fill="#38bdf8" />
+      <rect x="3" y="3" width="22" height="22" rx="5" fill="#0b1220" stroke="#2dd4bf" strokeWidth="2" />
+      <path d="M14 8l7 6h-2v6h-4v-4h-2v4H9v-6H7z" fill="#2dd4bf" />
     </svg>
   )
 }
 
-export default function MapView({ state, selectedRobotId, onSelectRobot, onCellClick }) {
+const MapView = forwardRef(function MapView(
+  { state, selectedRobotId, onSelectRobot, onCellClick, interactive, showComms },
+  ref,
+) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const fogCanvasRef = useRef(null)
@@ -96,21 +106,11 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
       })
     }
     map.on('move zoom resize', onViewChange)
-
-    map.on('click', (e) => {
-      const { x, y } = latLngToGrid(e.latlng.lat, e.latlng.lng)
-      onCellClick(x, y)
-    })
-
     mapRef.current = map
     map.invalidateSize()
     forceRedraw()
 
-    // The container's real size can settle after Leaflet's first paint
-    // (fonts, flex layout, CSS injected async) — keep it in sync.
-    const resizeObserver = new ResizeObserver(() => {
-      map.invalidateSize()
-    })
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize())
     resizeObserver.observe(containerRef.current)
 
     return () => {
@@ -122,6 +122,41 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Click handling is rebound whenever interactivity/handlers change, so a
+  // replay session (interactive=false) can't issue live orders.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const handler = (e) => {
+      if (!interactive) return
+      const { x, y } = latLngToGrid(e.latlng.lat, e.latlng.lng)
+      onCellClick(x, y)
+    }
+    map.on('click', handler)
+    return () => map.off('click', handler)
+  }, [interactive, onCellClick])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      flyTo(x, y) {
+        const map = mapRef.current
+        if (!map) return
+        const { lat, lng } = gridToLatLng(x, y)
+        map.flyTo([lat, lng], Math.max(map.getZoom(), 16), { duration: 0.9 })
+      },
+      shake() {
+        const el = containerRef.current
+        if (!el) return
+        el.classList.remove('quake-shake')
+        // eslint-disable-next-line no-unused-expressions
+        void el.offsetWidth
+        el.classList.add('quake-shake')
+      },
+    }),
+    [],
+  )
+
   const project = useCallback((x, y) => {
     const map = mapRef.current
     if (!map) return null
@@ -129,9 +164,10 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
     return map.latLngToContainerPoint([lat, lng])
   }, [])
 
-  // Redraw the fog-of-war layer: dark everywhere except cells the fleet has
-  // actually visited/reported on. Anchored in real lat/lng, not screen space,
-  // so it stays correctly placed while panning and zooming.
+  // Redraw the fog-of-war layer, anchored in real lat/lng so it stays
+  // correctly placed while panning/zooming. Verified cells are fully clear;
+  // scanned-but-unconfirmed cells keep a light haze — the map communicates
+  // confidence, not just presence/absence of data.
   useEffect(() => {
     const canvas = fogCanvasRef.current
     const map = mapRef.current
@@ -147,7 +183,7 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
     const ctx = canvas.getContext('2d')
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
-    ctx.fillStyle = 'rgba(6, 12, 22, 0.66)'
+    ctx.fillStyle = 'rgba(5, 10, 18, 0.72)'
     ctx.fillRect(0, 0, w, h)
 
     const p0 = project(0, 0)
@@ -161,9 +197,10 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
       const pt = project(c.x, c.y)
       if (!pt) continue
       if (pt.x < -radius || pt.x > w + radius || pt.y < -radius || pt.y > h + radius) continue
+      const strength = c.tier === 'verified' ? 1 : 0.55
       const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, radius)
-      grad.addColorStop(0, 'rgba(0,0,0,1)')
-      grad.addColorStop(0.72, 'rgba(0,0,0,1)')
+      grad.addColorStop(0, `rgba(0,0,0,${strength})`)
+      grad.addColorStop(0.72, `rgba(0,0,0,${strength})`)
       grad.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.fillStyle = grad
       ctx.beginPath()
@@ -171,8 +208,23 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
       ctx.fill()
     }
     ctx.globalCompositeOperation = 'source-over'
+
+    if (showComms) {
+      for (const z of state.deadZones) {
+        const pt = project(z.x, z.y)
+        if (!pt) continue
+        const rr = z.r * cellPx
+        const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, rr)
+        grad.addColorStop(0, 'rgba(239,68,68,0.28)')
+        grad.addColorStop(1, 'rgba(239,68,68,0)')
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.arc(pt.x, pt.y, rr, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.cells, project])
+  }, [state.cells, state.deadZones, showComms, project])
 
   const cellPxNow = (() => {
     const p0 = project(0, 0)
@@ -193,10 +245,36 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
     ;(c.state === 'hazard' ? hazardMarkers : blockedMarkers).push({ key: k, pt })
   }
 
+  const containerBox = mapRef.current ? mapRef.current.getContainer() : null
+  const boxW = containerBox ? containerBox.clientWidth : 0
+  const boxH = containerBox ? containerBox.clientHeight : 0
+
   return (
     <div className="absolute inset-0">
       <div ref={containerRef} className="absolute inset-0" style={{ isolation: 'isolate' }} />
       <canvas ref={fogCanvasRef} className="absolute inset-0 pointer-events-none" />
+
+      <svg className="absolute inset-0 pointer-events-none" width={boxW} height={boxH}>
+        {state.robots
+          .filter((r) => r.routePath && r.routePath.length > 1)
+          .map((r) => {
+            const pts = r.routePath.map((p) => project(p.x, p.y)).filter(Boolean)
+            if (pts.length < 2) return null
+            return (
+              <polyline
+                key={r.id}
+                points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
+                fill="none"
+                stroke={r.color}
+                strokeWidth="2.5"
+                strokeDasharray="7 6"
+                strokeLinecap="round"
+                className="route-line"
+                opacity="0.85"
+              />
+            )
+          })}
+      </svg>
 
       <div className="absolute inset-0 pointer-events-none">
         {basePt && (
@@ -223,7 +301,7 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
           return (
             <div
               key={sv.id}
-              className="absolute pointer-events-auto cursor-pointer"
+              className="absolute pointer-events-none"
               style={{ left: pt.x, top: pt.y, transform: 'translate(-50%,-100%)' }}
               title={`Survivor · ${sv.status}`}
             >
@@ -235,10 +313,14 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
         {state.robots.map((r) => {
           const pt = project(r.x, r.y)
           if (!pt) return null
-          const ageTicks = r.status === 'lost' ? state.tick - (r.lostSince ?? state.tick) : 0
-          const uncertaintyPx = Math.min(cellPxNow * 6, ageTicks * cellPxNow * 0.28)
+          const ageTicks = r.link === 'autonomous' ? state.tick - (r.autonomousSince ?? state.tick) : 0
+          const uncertaintyPx = Math.min(cellPxNow * 2.2, ageTicks * cellPxNow * 0.09)
           return (
-            <div key={r.id} className="absolute pointer-events-auto" style={{ left: pt.x, top: pt.y }}>
+            <div
+              key={r.id}
+              className="absolute pointer-events-auto"
+              style={{ left: pt.x, top: pt.y, transition: 'left 0.9s linear, top 0.9s linear' }}
+            >
               {uncertaintyPx > 4 && (
                 <div
                   className="absolute rounded-full border-2 border-dashed"
@@ -247,8 +329,9 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
                     height: uncertaintyPx * 2,
                     left: -uncertaintyPx,
                     top: -uncertaintyPx,
-                    borderColor: '#ef4444aa',
-                    background: '#ef444414',
+                    borderColor: '#ef444466',
+                    background: '#ef44440a',
+                    borderWidth: 1,
                   }}
                 />
               )}
@@ -258,10 +341,10 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
                   onSelectRobot(r.id)
                 }}
                 className="cursor-pointer"
-                style={{ transform: 'translate(-13px,-13px)' }}
+                style={{ transform: 'translate(-15px,-15px)' }}
                 title={r.name}
               >
-                <RobotDot color={r.color} status={r.status} selected={r.id === selectedRobotId} />
+                <RobotGlyph color={r.color} link={r.link} activity={r.activity} selected={r.id === selectedRobotId} />
               </button>
             </div>
           )
@@ -269,5 +352,6 @@ export default function MapView({ state, selectedRobotId, onSelectRobot, onCellC
       </div>
     </div>
   )
-}
+})
 
+export default MapView

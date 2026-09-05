@@ -1,78 +1,128 @@
-import { mapCoverage } from '../sim/engine'
+import { mapConfidence, missionClock } from '../sim/engine'
 
-function StatChip({ label, value, tone = 'default' }) {
-  const toneClasses = {
-    default: 'text-slate-200',
-    good: 'text-emerald-400',
-    warn: 'text-amber-400',
-    critical: 'text-red-400',
-  }
+function Stat({ label, value, tone = 'hi' }) {
+  const toneClass = {
+    hi: 'text-[var(--text-hi)]',
+    ok: 'text-[var(--ok)]',
+    warn: 'text-[var(--warn)]',
+    danger: 'text-[var(--danger)]',
+  }[tone]
   return (
-    <div className="flex flex-col px-3 py-1.5 border-r border-slate-800 last:border-r-0">
-      <span className="text-[10px] uppercase tracking-wide text-slate-500">{label}</span>
-      <span className={`text-sm font-semibold tabular-nums ${toneClasses[tone]}`}>{value}</span>
+    <div className="flex flex-col gap-0.5 px-3.5">
+      <span className="text-[9px] uppercase tracking-[0.12em] text-[var(--text-lo)]">{label}</span>
+      <span className={`font-mono text-[13px] font-semibold ${toneClass}`}>{value}</span>
     </div>
   )
 }
 
-function formatElapsed(ticks) {
-  const m = Math.floor(ticks / 60)
-  const s = ticks % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-export default function TopBar({ state, actions }) {
-  const active = state.robots.filter((r) => r.status === 'active').length
-  const degraded = state.robots.filter((r) => r.status === 'degraded').length
-  const lost = state.robots.filter((r) => r.status === 'lost').length
+export default function TopBar({ state, mode, actions, showComms, onToggleComms }) {
+  const online = state.robots.filter((r) => r.link === 'online').length
+  const autonomous = state.robots.filter((r) => r.link === 'autonomous').length
   const survivorsFound = state.survivors.length
   const survivorsConfirmed = state.survivors.filter((s) => s.status === 'confirmed' || s.status === 'rescued').length
-  const coverage = Math.round(mapCoverage(state) * 100)
+  const confidence = Math.round(mapConfidence(state) * 100)
   const commPct = Math.round(state.commQuality * 100)
-  const commTone = commPct > 70 ? 'good' : commPct > 45 ? 'warn' : 'critical'
+  const commTone = commPct > 70 ? 'ok' : commPct > 45 ? 'warn' : 'danger'
+  const started = state.phase === 'running'
 
   return (
-    <header className="flex items-center justify-between gap-4 px-4 py-2 border-b border-slate-800 bg-[#0d131b] shrink-0">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold tracking-wide text-slate-100 truncate">Rescue Coordination</h1>
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-teal-300 bg-teal-400/10 border border-teal-400/30 rounded px-1.5 py-0.5">
-              Simulated exercise
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500">Earthquake response fleet · elapsed {formatElapsed(state.tick)}</p>
+    <header className="relative flex items-center justify-between gap-3 px-4 h-14 border-b border-[var(--line)] bg-[var(--ink-950)] shrink-0">
+      <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+        <span className={`w-2 h-2 rounded-full ${started ? 'bg-[var(--danger)] animate-pulse' : 'bg-[var(--text-lo)]'}`} />
+        <div className="min-w-0 leading-tight">
+          <h1 className="text-[13px] font-semibold tracking-wide text-[var(--text-hi)] truncate">RESCUE COORDINATION</h1>
+          <p className="font-mono text-[10px] text-[var(--text-lo)] truncate">
+            {started ? (
+              <>
+                T+{missionClock(state.tick)}
+                {state.quakeMagnitude && <> · M{state.quakeMagnitude}</>}
+              </>
+            ) : (
+              'STANDBY'
+            )}
+          </p>
         </div>
       </div>
 
-      <div className="flex items-stretch bg-[#0a0e14] border border-slate-800 rounded-md overflow-hidden shrink-0">
-        <StatChip label="Robots online" value={`${active}/${state.robots.length}`} tone={lost ? 'critical' : degraded ? 'warn' : 'good'} />
-        <StatChip label="Survivors confirmed" value={`${survivorsConfirmed}/${survivorsFound}`} tone={survivorsFound ? 'warn' : 'default'} />
-        <StatChip label="Area checked" value={`${coverage}%`} />
-        <StatChip label="Signal strength" value={`${commPct}%`} tone={commTone} />
-      </div>
+      {started && (
+        <div className="hidden md:flex items-center flex-1 justify-center min-w-0">
+          <div className="flex items-center gap-1.5 pr-4 mr-4 border-r border-[var(--line)]">
+            <div className="flex flex-col items-end leading-none">
+              <span className="text-[9px] uppercase tracking-[0.12em] text-[var(--text-lo)] mb-1">Map confidence</span>
+              <span className="font-mono text-2xl font-bold text-[var(--accent)] tabular-mono">{confidence}%</span>
+            </div>
+            <div className="w-20 h-1.5 rounded-full bg-[var(--ink-700)] overflow-hidden ml-2">
+              <div className="h-full bg-[var(--accent)] transition-all duration-700" style={{ width: `${confidence}%` }} />
+            </div>
+          </div>
+
+          <div className="flex items-stretch divide-x divide-[var(--line)]">
+            <Stat label="Robots online" value={`${online}/${state.robots.length}`} tone={autonomous ? 'warn' : 'ok'} />
+            <Stat label="Survivors" value={`${survivorsConfirmed}/${survivorsFound}`} tone={survivorsFound ? 'warn' : 'hi'} />
+            <Stat label="Signal" value={`${commPct}%`} tone={commTone} />
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 shrink-0">
-        <div className="flex bg-[#0a0e14] border border-slate-800 rounded-md overflow-hidden">
-          {[1, 2, 4].map((v) => (
+        {started && (
+          <>
+            <div className="flex bg-[var(--ink-800)] border border-[var(--line)] rounded-md overflow-hidden">
+              <button
+                onClick={actions.exitReplay}
+                className={`px-2.5 py-1.5 text-[10px] font-semibold tracking-wide ${
+                  mode === 'live' ? 'bg-[var(--accent)] text-[var(--ink-950)]' : 'text-[var(--text-lo)] hover:text-[var(--text-hi)]'
+                }`}
+              >
+                LIVE
+              </button>
+              <button
+                onClick={actions.enterReplay}
+                className={`px-2.5 py-1.5 text-[10px] font-semibold tracking-wide ${
+                  mode === 'replay' ? 'bg-[var(--accent)] text-[var(--ink-950)]' : 'text-[var(--text-lo)] hover:text-[var(--text-hi)]'
+                }`}
+              >
+                REPLAY
+              </button>
+            </div>
+
             <button
-              key={v}
-              onClick={() => actions.setSpeed(v)}
-              className={`px-2.5 py-1.5 text-xs font-medium ${
-                state.speed === v ? 'bg-teal-500 text-slate-900' : 'text-slate-400 hover:text-slate-200'
+              onClick={onToggleComms}
+              className={`px-2.5 py-1.5 text-[10px] font-semibold tracking-wide rounded-md border ${
+                showComms
+                  ? 'border-[var(--danger)]/50 bg-[var(--danger)]/10 text-[var(--danger)]'
+                  : 'border-[var(--line)] bg-[var(--ink-800)] text-[var(--text-lo)] hover:text-[var(--text-hi)]'
               }`}
+              title="Toggle communication coverage overlay"
             >
-              {v}×
+              SIGNAL MAP
             </button>
-          ))}
-        </div>
-        <button
-          onClick={actions.togglePause}
-          className="px-3 py-1.5 text-xs font-semibold rounded-md border border-slate-700 bg-[#141b25] text-slate-200 hover:bg-[#1c2530]"
-        >
-          {state.paused ? '▶ Resume' : '⏸ Pause'}
-        </button>
+
+            {mode === 'live' && (
+              <>
+                <div className="flex bg-[var(--ink-800)] border border-[var(--line)] rounded-md overflow-hidden">
+                  {[1, 2, 4].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => actions.setSpeed(v)}
+                      className={`px-2.5 py-1.5 text-[10px] font-semibold ${
+                        state.speed === v ? 'bg-[var(--accent)] text-[var(--ink-950)]' : 'text-[var(--text-lo)] hover:text-[var(--text-hi)]'
+                      }`}
+                    >
+                      {v}×
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={actions.togglePause}
+                  className="px-3 py-1.5 text-[10px] font-semibold tracking-wide rounded-md border border-[var(--line)] bg-[var(--ink-800)] text-[var(--text-hi)] hover:bg-[var(--ink-700)]"
+                >
+                  {state.paused ? 'RESUME' : 'PAUSE'}
+                </button>
+              </>
+            )}
+          </>
+        )}
       </div>
     </header>
   )

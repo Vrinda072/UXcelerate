@@ -1,55 +1,50 @@
 import { timeAgoLabel } from '../sim/engine'
-
-const STATUS_LABEL = {
-  active: 'Online',
-  degraded: 'Weak signal',
-  lost: 'No contact',
-}
-
-const STATUS_TEXT_CLASS = {
-  active: 'text-emerald-400',
-  degraded: 'text-amber-400',
-  lost: 'text-red-400',
-}
+import { robotStateLabel, TONE_TEXT_CLASS, TONE_DOT_CLASS } from '../sim/robotState'
 
 export default function FleetList({ state, selectedRobotId, onSelectRobot }) {
   const now = state.startedAt + state.tick * 1000
 
   return (
-    <aside className="w-64 shrink-0 border-r border-slate-800 bg-[#0d131b] flex flex-col">
-      <div className="px-3 py-2 border-b border-slate-800">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fleet ({state.robots.length})</h2>
+    <aside className="w-64 shrink-0 border-r border-[var(--line)] bg-[var(--ink-950)] flex flex-col">
+      <div className="px-3 h-9 flex items-center border-b border-[var(--line)]">
+        <h2 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-lo)]">
+          Fleet <span className="font-mono text-[var(--text-hi)]">{state.robots.length}</span>
+        </h2>
       </div>
       <div className="flex-1 overflow-y-auto">
         {state.robots.map((r) => {
           const selected = r.id === selectedRobotId
-          const lastContactMs = r.status === 'lost' ? now - r.lastContact : 0
+          const { label, tone } = robotStateLabel(r)
+          const lastContactMs = r.link === 'autonomous' ? now - r.lastContact : 0
           return (
             <button
               key={r.id}
               onClick={() => onSelectRobot(r.id)}
-              className={`w-full text-left px-3 py-2.5 border-b border-slate-800/60 flex items-start gap-2.5 transition-colors ${
-                selected ? 'bg-teal-500/10 border-l-2 border-l-teal-400' : 'hover:bg-slate-800/40 border-l-2 border-l-transparent'
+              className={`w-full text-left px-3 py-2.5 border-b border-[var(--line)]/60 flex items-start gap-2.5 transition-colors ${
+                selected ? 'bg-[var(--accent-dim)] border-l-2 border-l-[var(--accent)]' : 'hover:bg-[var(--ink-800)] border-l-2 border-l-transparent'
               }`}
             >
-              <span className="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
+              <span className="mt-0.5 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
               <span className="flex-1 min-w-0">
                 <span className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-100 truncate">{r.name}</span>
-                  <span className={`text-[10px] font-medium ${STATUS_TEXT_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                  <span className="text-[13px] font-medium text-[var(--text-hi)] truncate">{r.name}</span>
+                  <span className="font-mono text-[9px] text-[var(--text-lo)]">{r.id}</span>
                 </span>
-                <span className="block text-[11px] text-slate-500 truncate">{r.task}</span>
-                <span className="flex items-center gap-2 mt-1">
-                  <span className="flex-1 h-1 rounded bg-slate-800 overflow-hidden">
+                <span className={`flex items-center gap-1 text-[10px] font-medium mt-0.5 ${TONE_TEXT_CLASS[tone]}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${TONE_DOT_CLASS[tone]}`} />
+                  {label}
+                </span>
+                <span className="flex items-center gap-2 mt-1.5">
+                  <span className="flex-1 h-1 rounded-full bg-[var(--ink-700)] overflow-hidden">
                     <span
-                      className={`block h-full ${r.battery < 20 ? 'bg-amber-400' : 'bg-slate-500'}`}
+                      className={`block h-full ${r.battery < 20 ? 'bg-[var(--warn)]' : 'bg-[var(--text-lo)]'}`}
                       style={{ width: `${r.battery}%` }}
                     />
                   </span>
-                  <span className="text-[10px] text-slate-500 tabular-nums">{Math.round(r.battery)}%</span>
+                  <span className="font-mono text-[9px] text-[var(--text-lo)] tabular-mono">{Math.round(r.battery)}%</span>
                 </span>
-                {r.status === 'lost' && (
-                  <span className="block text-[10px] text-red-400 mt-1">Last seen {timeAgoLabel(lastContactMs)}</span>
+                {r.link === 'autonomous' && (
+                  <span className="block text-[9px] text-[var(--danger)] mt-1 font-mono">last fix {timeAgoLabel(lastContactMs)}</span>
                 )}
               </span>
             </button>
