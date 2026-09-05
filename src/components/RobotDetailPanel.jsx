@@ -2,15 +2,13 @@ import { timeAgoLabel } from '../sim/engine'
 
 const STATUS_TEXT = {
   active: { label: 'Online', tone: 'text-emerald-400' },
-  degraded: { label: 'Weak signal — telemetry may lag', tone: 'text-amber-400' },
-  lost: { label: 'No contact — position is last known, not current', tone: 'text-red-400' },
+  degraded: { label: 'Weak signal — updates may lag', tone: 'text-amber-400' },
+  lost: { label: 'No contact — showing last known spot', tone: 'text-red-400' },
 }
 
 export default function RobotDetailPanel({ robot, now }) {
   if (!robot) {
-    return (
-      <div className="p-4 text-sm text-slate-500 border-b border-slate-800">Select a robot to view telemetry.</div>
-    )
+    return <div className="p-4 text-sm text-slate-500 border-b border-slate-800">Select a robot to see its details.</div>
   }
 
   const status = STATUS_TEXT[robot.status]
@@ -26,10 +24,6 @@ export default function RobotDetailPanel({ robot, now }) {
       <p className={`text-xs mb-2 ${status.tone}`}>{status.label}</p>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-        <dt className="text-slate-500">Position</dt>
-        <dd className="text-slate-200 tabular-nums">
-          ({robot.x}, {robot.y})
-        </dd>
         <dt className="text-slate-500">Battery</dt>
         <dd className={robot.battery < 20 ? 'text-amber-400' : 'text-slate-200'}>{Math.round(robot.battery)}%</dd>
         <dt className="text-slate-500">Current task</dt>
@@ -41,13 +35,13 @@ export default function RobotDetailPanel({ robot, now }) {
       </dl>
 
       {robot.status !== 'lost' ? (
-        <p className="mt-2.5 text-[11px] text-sky-300/80 bg-sky-500/10 border border-sky-500/20 rounded px-2 py-1.5">
-          Click any explored map tile to send {robot.name} there manually.
+        <p className="mt-2.5 text-[11px] text-teal-300/80 bg-teal-500/10 border border-teal-500/20 rounded px-2 py-1.5">
+          Click anywhere on the checked map to send {robot.name} there.
         </p>
       ) : (
         <p className="mt-2.5 text-[11px] text-red-300/80 bg-red-500/10 border border-red-500/20 rounded px-2 py-1.5">
-          Manual routing unavailable while contact is lost. Shown position is the last confirmed fix — actual location may
-          have drifted.
+          Can't redirect {robot.name} while contact is lost. The pin shows where it was last seen — it may have moved
+          since.
         </p>
       )}
     </div>

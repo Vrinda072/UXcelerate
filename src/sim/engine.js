@@ -1,10 +1,28 @@
 // Deterministic-ish simulation of a multi-robot disaster response mission.
 // Everything here is client-side mock data standing in for a real robot fleet feed.
 
-export const COLS = 26
-export const ROWS = 16
+export const COLS = 22
+export const ROWS = 14
 
-export const ROBOT_COLORS = ['#3b9eff', '#a78bfa', '#2dd4bf', '#f472b6', '#facc15', '#fb923c']
+export const ROBOT_COLORS = ['#38bdf8', '#a78bfa', '#2dd4bf', '#fb7185', '#fbbf24', '#818cf8']
+
+// The grid is projected onto a real map so the interface reads as an actual
+// place, not an abstract board. One grid cell is roughly one city block.
+export const ORIGIN_LAT = 37.765
+export const ORIGIN_LNG = -122.43
+export const CELL_LAT_DEG = 0.00085
+export const CELL_LNG_DEG = 0.00108
+
+export function gridToLatLng(x, y) {
+  return { lat: ORIGIN_LAT - y * CELL_LAT_DEG, lng: ORIGIN_LNG + x * CELL_LNG_DEG }
+}
+
+export function latLngToGrid(lat, lng) {
+  return {
+    x: Math.round((lng - ORIGIN_LNG) / CELL_LNG_DEG),
+    y: Math.round((ORIGIN_LAT - lat) / CELL_LAT_DEG),
+  }
+}
 
 const BASE = { x: 2, y: ROWS - 3 }
 
@@ -59,7 +77,7 @@ export function createInitialState(seedTime = Date.now()) {
     heading: 0,
     status: 'active', // active | degraded | lost
     battery: 82 + Math.round(Math.random() * 15),
-    task: 'Exploring sector',
+    task: 'Assessing area',
     lastContact: seedTime,
     lostSince: null,
     target: null,
@@ -78,7 +96,7 @@ export function createInitialState(seedTime = Date.now()) {
         t: seedTime,
         type: 'system',
         severity: 'info',
-        message: 'Fleet deployed from staging base. Mapping underway.',
+        message: 'Fleet deployed from staging base. Assessing the area.',
         acknowledged: true,
       },
     ],
@@ -154,12 +172,12 @@ function findNearestFrontier(state, from) {
 
 function revealAround(state, robot, x, y) {
   const cands = neighbors(x, y).filter((n) => !cellAt(state, n.x, n.y))
-  const toReveal = cands.slice(0, 1 + Math.floor(Math.random() * 2))
+  const toReveal = cands.slice(0, Math.random() < 0.25 ? 2 : 1)
   for (const n of toReveal) {
     const r = Math.random()
     let cellState = 'explored'
-    if (r < 0.1) cellState = 'blocked'
-    else if (r < 0.2) cellState = 'hazard'
+    if (r < 0.07) cellState = 'blocked'
+    else if (r < 0.13) cellState = 'hazard'
 
     state.cells[key(n.x, n.y)] = {
       x: n.x,
@@ -175,7 +193,7 @@ function revealAround(state, robot, x, y) {
         type: 'blocked',
         severity: 'warn',
         robotId: robot.id,
-        message: `${robot.name} found an impassable path at (${n.x}, ${n.y}).`,
+        message: `${robot.name} found a blocked road nearby.`,
         loc: { x: n.x, y: n.y },
       })
     } else if (cellState === 'hazard') {
@@ -183,12 +201,12 @@ function revealAround(state, robot, x, y) {
         type: 'hazard',
         severity: 'critical',
         robotId: robot.id,
-        message: `${robot.name} flagged a structural hazard at (${n.x}, ${n.y}).`,
+        message: `${robot.name} flagged a structural hazard nearby.`,
         loc: { x: n.x, y: n.y },
       })
     }
 
-    if (cellState !== 'blocked' && state.survivors.length < 14 && Math.random() < 0.045) {
+    if (cellState !== 'blocked' && state.survivors.length < 9 && Math.random() < 0.04) {
       const survivor = {
         id: `sv-${state.survivors.length + 1}-${n.x}-${n.y}`,
         x: n.x,
@@ -203,7 +221,7 @@ function revealAround(state, robot, x, y) {
         severity: 'critical',
         robotId: robot.id,
         survivorId: survivor.id,
-        message: `${robot.name} detected a possible survivor at (${n.x}, ${n.y}).`,
+        message: `${robot.name} spotted a possible survivor nearby.`,
         loc: { x: n.x, y: n.y },
       })
     }
@@ -213,7 +231,7 @@ function revealAround(state, robot, x, y) {
 function maybeClearRoute(state, robot) {
   const nb = neighbors(robot.x, robot.y)
   const blocked = nb.filter((n) => cellAt(state, n.x, n.y)?.state === 'blocked')
-  if (blocked.length && Math.random() < 0.05) {
+  if (blocked.length && Math.random() < 0.04) {
     const cell = blocked[Math.floor(Math.random() * blocked.length)]
     const c = cellAt(state, cell.x, cell.y)
     c.state = 'explored'
@@ -222,7 +240,7 @@ function maybeClearRoute(state, robot) {
       type: 'route',
       severity: 'good',
       robotId: robot.id,
-      message: `${robot.name} cleared a new route at (${cell.x}, ${cell.y}).`,
+      message: `${robot.name} cleared a blocked road nearby.`,
       loc: { x: cell.x, y: cell.y },
     })
   }
@@ -230,30 +248,30 @@ function maybeClearRoute(state, robot) {
 
 function updateComms(state, robot) {
   if (robot.status === 'active') {
-    const failChance = 0.012 + (1 - state.commQuality) * 0.05
+    const failChance = 0.007 + (1 - state.commQuality) * 0.035
     if (Math.random() < failChance) {
       robot.status = 'degraded'
       pushEvent(state, {
         type: 'comm-degraded',
         severity: 'warn',
         robotId: robot.id,
-        message: `Signal degrading for ${robot.name}. Telemetry may be stale.`,
+        message: `Signal degrading for ${robot.name}. Telemetry may lag.`,
       })
     } else {
       robot.lastContact = state.startedAt + state.tick * 1000
     }
   } else if (robot.status === 'degraded') {
     const r = Math.random()
-    if (r < 0.08) {
+    if (r < 0.05) {
       robot.status = 'lost'
       robot.lostSince = state.tick
       pushEvent(state, {
         type: 'comm-lost',
         severity: 'critical',
         robotId: robot.id,
-        message: `Lost contact with ${robot.name}. Last known position (${robot.x}, ${robot.y}).`,
+        message: `Lost contact with ${robot.name}. Showing its last known position.`,
       })
-    } else if (r < 0.35) {
+    } else if (r < 0.4) {
       robot.status = 'active'
       robot.lastContact = state.startedAt + state.tick * 1000
       pushEvent(state, {
@@ -308,7 +326,8 @@ function moveRobot(state, robot) {
     robot.y = next.y
   }
 
-  if (isFrontier(state, robot.x, robot.y) || Math.random() < 0.3) {
+  const atFrontier = isFrontier(state, robot.x, robot.y)
+  if ((atFrontier && Math.random() < 0.4) || Math.random() < 0.05) {
     revealAround(state, robot, robot.x, robot.y)
   }
   maybeClearRoute(state, robot)
@@ -323,7 +342,7 @@ function moveRobot(state, robot) {
       message: `${robot.name} battery low (${Math.round(robot.battery)}%). Recommend recall.`,
     })
   } else if (robot.battery >= 20 && robot.task === 'Returning to base (low battery)') {
-    robot.task = 'Exploring sector'
+    robot.task = 'Assessing area'
   }
 }
 

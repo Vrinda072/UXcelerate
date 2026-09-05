@@ -5,7 +5,7 @@ const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'survivor', label: 'Survivors' },
   { id: 'hazard', label: 'Hazards' },
-  { id: 'comm', label: 'Comms' },
+  { id: 'comm', label: 'Signal' },
 ]
 
 const SEVERITY_DOT = {
@@ -65,7 +65,7 @@ export default function EventFeed({ state, now, onAcknowledge, onDispatch, onSet
                 <div className="flex gap-1.5 mt-2 pl-3.5">
                   <button
                     onClick={() => onDispatch(survivor.id)}
-                    className="px-2 py-1 rounded bg-sky-600/90 hover:bg-sky-500 text-white text-[11px] font-medium"
+                    className="px-2 py-1 rounded bg-teal-500 hover:bg-teal-400 text-slate-900 text-[11px] font-semibold"
                   >
                     Dispatch nearest
                   </button>

@@ -1,5 +1,5 @@
 export default function CriticalAlerts({ state, onAcknowledge, onDispatch }) {
-  const alerts = state.events.filter((e) => e.severity === 'critical' && !e.acknowledged).slice(0, 3)
+  const alerts = state.events.filter((e) => e.severity === 'critical' && !e.acknowledged).slice(0, 2)
 
   if (alerts.length === 0) return null
 
@@ -22,7 +22,7 @@ export default function CriticalAlerts({ state, onAcknowledge, onDispatch }) {
                       onDispatch(survivor.id)
                       onAcknowledge(evt.id)
                     }}
-                    className="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-medium"
+                    className="px-2 py-1 rounded bg-teal-500 hover:bg-teal-400 text-slate-900 text-[11px] font-semibold"
                   >
                     Dispatch nearest
                   </button>
